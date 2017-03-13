@@ -36,11 +36,10 @@ using namespace std;
 #define ADDR "172.30.106.75"
 void connect2clients();
 vector<int> players;
-vector<struct sockaddr_in> players1;
 //some code
 int main()
 {
-	struct sockaddr_in serv_addr,cli_addr,temp_addr;
+	struct sockaddr_in serv_addr,cli_addr;
 	socklen_t cli_len;
 
 	int sfd = socket(AF_INET,SOCK_STREAM,0);
@@ -54,19 +53,13 @@ int main()
 	if(bind(sfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr)) == -1)
 	perror("BIND FAILED");
 	fprintf(stderr, "done binding to %s", ADDR);
-	cout<<endl;
 	listen(sfd,5);
 
 	while(1)
 	{
-		memset(&cli_addr,-1,sizeof(struct sockaddr_in));
 		int nsfd = accept(sfd,(struct sockaddr *)&cli_addr,&cli_len);
 
 		players.push_back(nsfd);
-		
-		temp_addr = cli_addr;
-
-		players1.push_back(temp_addr);
 
 		if(players.size() > 1)
 		{	
@@ -81,57 +74,20 @@ int main()
 
 void connect2clients()
 {
-	char buf[100];
 	struct sockaddr_in a, b;
-	socklen_t la,lb;
-	//getpeername(players[0], (struct sockaddr*)&a, &la);
-
-	a = players1[0];
-
-	cout<<a.sin_family<<endl;
-	cout<<ntohs(a.sin_port)<<endl;
-	memset(buf,'\0',100);
-	inet_ntop(AF_INET,&(a.sin_addr),buf,INET_ADDRSTRLEN);
-	cout<<buf<<endl;
-	
-	cout<<"----------------"<<endl;
-	//getpeername(players[1], (struct sockaddr*)&b, &lb);
-
-	b = players1[1];
-
-	cout<<b.sin_family<<endl;
-	cout<<ntohs(b.sin_port)<<endl;
-	memset(buf,'\0',100);
-	inet_ntop(AF_INET,&(b.sin_addr),buf,INET_ADDRSTRLEN);
-	cout<<buf<<endl;
+	socklen_t l;
+	getpeername(players[0], (struct sockaddr*)&a, &l);
+	getpeername(players[1], (struct sockaddr*)&b, &l);
 
 	fprintf(stderr, "\nCame in");
-	
-	if(-1 == send(players[1], &players1[1], sizeof(players1[1]), 0))
+	if(-1 == send(players[1], (char *)&a, sizeof(struct sockaddr_in), 0))
 	{
 		perror("Send1");
 	}
-	if(-1 == send(players[0], &players1[0], sizeof(players1[0]), 0))
+	if(-1 == send(players[0], (char *)&b, sizeof(struct sockaddr_in), 0))
 	{
 		perror("Send2");
 	}
-	if(-1 == send(players[1], &players1[0], sizeof(players1[0]), 0))
-	{
-		perror("Send3");
-	}		
-	if(-1 == send(players[0], &players1[1], sizeof(players1[1]), 0))
-	{
-		perror("Send4");
-	}
-
-	if(-1 == send(players[0],"1",1,0))
-	perror("send5");
-	if(-1 == send(players[1],"2",1,0))
-	perror("send6");
-
 	fprintf(stderr, "\nCame out..");
 	players.erase(players.begin(), players.begin()+1);
-	players.erase(players.begin(), players.begin()+1);
-	players1.erase(players1.begin(), players1.begin()+1);
-	players1.erase(players1.begin(), players1.begin()+1);	
 }

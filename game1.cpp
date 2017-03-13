@@ -8,6 +8,16 @@
 #include <termios.h>
 #include <stropts.h>
 #include <sys/ioctl.h>
+#include <cstdlib>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <sys/un.h>
+#include <wait.h>
+#include <errno.h>
 
 #define GAMESIZE 10
 
@@ -17,12 +27,15 @@ int p1headi = 5,p1headj = 5,p2headi = 5,p2headj = 15,fruiti,fruitj;
 vector <int> p1taili,p1tailj,p2taili,p2tailj;
 
 enum class Dir {stat,up,down,left,right};
-Dir p1dir = Dir::right;
-Dir p2dir = Dir::left;   //change them to stat initially ..
+Dir pdir[2] = {Dir::right,Dir::left};   //change them to stat initially ..
 bool gen = true,gameover = false,flag = false;
-char p1in = 'd',p2in = 'a';
+char pin[2] = {'d','a'};
 fd_set readfd;
+int playno;
 struct timeval timeout;
+struct sockaddr_in oppo_addr,cli_addr;
+socklen_t cli_len;
+char buffer[1],tst[100];
 
 int _kbhit() {
     static const int STDIN = 0;
@@ -114,7 +127,7 @@ void pinput()
 {
 	//cout<<"IN HERE"<<endl;
 
-	cout<<p1in<<" "<<p2in<<endl;	
+	//cout<<p1in<<" "<<p2in<<endl;	
 
 	/*FD_ZERO(&readfd);
 	FD_SET(STDIN_FILENO,&readfd);
@@ -124,41 +137,66 @@ void pinput()
 	if(_kbhit())
 	{
 		cout<<"success"<<endl;
-		p1in = cin.get();
+		pin[playno] = cin.get();
+
+		memset(buffer,'\0',1);
+		buffer[0] = pin[playno];
+		cout<<"Sending"<<endl;
+		sendto(2,buffer,1,0,(struct sockaddr *)&oppo_addr,sizeof(oppo_addr));
 	}
+
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 0;
+
+	FD_ZERO(&readfd);
+
+	FD_SET(2,&readfd);
+
+	int selp = select(3,&readfd,NULL,NULL,&timeout);
+
+	if(selp>0)
+	{
+		if(FD_ISSET(2,&readfd))
+		{
+			cout<<"Receiving"<<endl;
+			memset(buffer,'\0',1);
+			recvfrom(2,buffer,1,0,(struct sockaddr *)&cli_addr,&cli_len);
+			pin[(playno+1)%2] = buffer[0];
+		}
+	}	
 
 	//how to receive p2 input ..?
 
-	switch(p1in)
+	switch(pin[0])
 	{
-		case 'w' : 	if(p1dir!=Dir::down)
-				p1dir = Dir::up;
+		case 'w' : 	if(pdir[0]!=Dir::down)
+				pdir[0] = Dir::up;
 			break;
-		case 's' : 	if(p1dir!=Dir::up)
-				p1dir = Dir::down;
+		case 's' : 	if(pdir[0]!=Dir::up)
+				pdir[0] = Dir::down;
 			break;
-		case 'a' : 	if(p1dir!=Dir::right)	
-				p1dir = Dir::left;
+		case 'a' : 	if(pdir[0]!=Dir::right)	
+				pdir[0] = Dir::left;
 			break;
-		case 'd' : 	if(p1dir!=Dir::left)
-				p1dir = Dir::right;
+		case 'd' : 	if(pdir[0]!=Dir::left)
+				pdir[0] = Dir::right;
 			break;
 		default : break;
 	}
 	
-	switch(p2in)
+	switch(pin[1])		//dunno ...
 	{
-		case 'w' : 	if(p2dir!=Dir::down)
-				p2dir = Dir::up;
+		case 'w' : 	if(pdir[1]!=Dir::down)
+				pdir[1] = Dir::up;
 			break;
-		case 's' : 	if(p2dir!=Dir::up)
-				p2dir = Dir::down;
+		case 's' : 	if(pdir[1]!=Dir::up)
+				pdir[1] = Dir::down;
 			break;
-		case 'a' : 	if(p2dir!=Dir::right)
-				p2dir = Dir::left;
+		case 'a' : 	if(pdir[1]!=Dir::right)
+				pdir[1] = Dir::left;
 			break;
-		case 'd' : 	if(p2dir!=Dir::left)
-				p2dir = Dir::right;
+		case 'd' : 	if(pdir[1]!=Dir::left)
+				pdir[1] = Dir::right;
 			break;
 		default : break;
 	}
@@ -166,7 +204,7 @@ void pinput()
 
 void logic()
 {
-	switch(p1dir)
+	switch(pdir[0])
 	{
 		case Dir::up : 
 				p1taili.insert(p1taili.begin(),p1headi);
@@ -226,7 +264,7 @@ void logic()
 			break;
 	}
 
-	switch(p2dir)
+	switch(pdir[1])
 	{
 		case Dir::up : 
 				p2taili.insert(p2taili.begin(),p2headi);
@@ -302,12 +340,30 @@ void generate()
 	}
 }
 
-int main()
+int main(int argc,char *argv[])
 {
 	srand(time(NULL));
 
+	int port = atoi(argv[2]);
+
+	oppo_addr.sin_family = AF_INET;
+	oppo_addr.sin_port = htons(port);
+	inet_pton(AF_INET,argv[1],&(oppo_addr.sin_addr));
+	memset(oppo_addr.sin_zero,0,8);
+
 	//pthread_t in,out;
+	memset(tst,'\0',100);
 	
+	//sendto(2,argv[1],strlen(argv[1]),0,(struct sockaddr *)&oppo_addr,sizeof(oppo_addr));
+
+	//recvfrom(2,tst,100,0,(struct sockaddr *)&cli_addr,&cli_len);
+	//cout<<tst<<endl;
+
+	playno = atoi(argv[3]) - 1;
+	cout<<playno<<endl;
+
+	sleep(5);
+
 	//pthread_create(&in,NULL,&sinput,NULL);
 
 	while(!gameover)
@@ -316,7 +372,7 @@ int main()
 		display();		//link with sockets ..
 		pinput();
 		logic();
-		sleep(1);	
+		usleep(300000);	
 	}
 
 	return 0;

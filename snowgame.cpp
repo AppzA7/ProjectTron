@@ -9,11 +9,11 @@
 #include <stropts.h>
 #include <sys/ioctl.h>
 
-#define GAMESIZE 10
+#define GAMESIZE 40
 
 using namespace std;
 
-int p1headi = 5,p1headj = 5,p2headi = 5,p2headj = 15,fruiti,fruitj;
+int p1headi = GAMESIZE/3,p1headj = GAMESIZE/2,p2headi = GAMESIZE*2/3,p2headj = GAMESIZE/2,fruiti,fruitj;
 vector <int> p1taili,p1tailj,p2taili,p2tailj;
 
 enum class Dir {stat,up,down,left,right};
@@ -46,17 +46,18 @@ int _kbhit() {
 void display()
 {
 	system("clear");
-
+	char a;
 	for(int i=0;i<GAMESIZE;i++)
 	{
 		for(int j=0;j<GAMESIZE*2;j++)
 		{
 			if((i==0&&j==0) || (i==0&&j==GAMESIZE*2-1) || (i==GAMESIZE-1&&j==0) || (i==GAMESIZE-1&&j==GAMESIZE*2-1))
-			cout<<"+";
+			a = 178;
+			cout<<a;
 			else if(i==0 || i==GAMESIZE-1)
-			cout<<"-";
+			cout<<a;
 			else if(j==0 || j==GAMESIZE*2-1)
-			cout<<"|";
+			cout<<a;
 			else if(i==p1headi && j==p1headj)
 			{
 				for(int ptail=0;ptail<p2taili.size();ptail++)
