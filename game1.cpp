@@ -31,11 +31,12 @@ Dir pdir[2] = {Dir::right,Dir::left};   //change them to stat initially ..
 bool gen = true,gameover = false,flag = false;
 char pin[2] = {'d','a'};
 fd_set readfd;
-int playno;
 struct timeval timeout;
-struct sockaddr_in oppo_addr,cli_addr;
+struct sockaddr_in oppo_addr,cli_addr,cli_addr1,cli_addr2;
 socklen_t cli_len;
 char buffer[1],tst[100];
+char clibuff[GAMESIZE][GAMESIZE*2];
+char winner = ' ';
 
 int _kbhit() {
     static const int STDIN = 0;
@@ -58,69 +59,57 @@ int _kbhit() {
 
 void display()
 {
-	system("clear");
+	//system("clear");
+	memset(clibuff,' ',200);
 
-	for(int i=0;i<GAMESIZE;i++)
+	for(int i=1;i<GAMESIZE*2-1;i++)
 	{
-		for(int j=0;j<GAMESIZE*2;j++)
-		{
-			if((i==0&&j==0) || (i==0&&j==GAMESIZE*2-1) || (i==GAMESIZE-1&&j==0) || (i==GAMESIZE-1&&j==GAMESIZE*2-1))
-			cout<<"+";
-			else if(i==0 || i==GAMESIZE-1)
-			cout<<"-";
-			else if(j==0 || j==GAMESIZE*2-1)
-			cout<<"|";
-			else if(i==p1headi && j==p1headj)
-			{
-				for(int ptail=0;ptail<p2taili.size();ptail++)
-				{
-					if(i==p2taili[ptail] && j==p2tailj[ptail])
-					gameover = true;
-				}
-				cout<<"X";
-			}
-			else if(i==p2headi && j==p2headj)
-			{
-				for(int ptail=0;ptail<p1taili.size();ptail++)
-				{
-					if(i==p1taili[ptail] && j==p1tailj[ptail])
-					gameover = true;
-				}	
-				cout<<"O";
-			}
-			else if(i==fruiti && j==fruitj)
-			cout<<"F";
-			else
-			{
-				for(int ptail=0;ptail<p1taili.size();ptail++)
-				{
-					if(p1taili[ptail]==i && p1tailj[ptail]==j)
-					{
-						cout<<"x";		
-						flag = true;
-					}
-				}
-				if(!flag)
-				{
-					for(int ptail=0;ptail<p2taili.size();ptail++)
-					{
-						if(p2taili[ptail]==i && p2tailj[ptail]==j)
-						{
-							cout<<"o";		
-							flag = true;
-						}
-					}
-				}
-				
-				if(!flag)
-				cout<<" ";
-				else
-				flag = false;
-			}
+		clibuff[0][i] = '-';
+		clibuff[GAMESIZE-1][i] = '-';
+		if(i<GAMESIZE-1)
+		{	
+			clibuff[i][0] = '|';
+			clibuff[i][GAMESIZE-1] = '|';
 		}
-		cout<<endl;
 	}
 
+	buff[0][0] = '+';
+	buff[0][GAMESIZE*2-1] = '+';
+	buff[GAMESIZE-1][0] = '+';
+	buff[GAMESIZE-1][GAMESIZE*2-1] = '+';
+
+	if(buff[p1headi][p1headj] == '-' || buff[p1headi][p1headj] == '|' || buff[p1headi][p1headj] == 'x' || buff[p1headi][p1headj] == 'O' || buff[p1headi][p1headj] =='o')
+	{
+		gameover = true;
+		winner = '1';
+		if(buff[p1headi][p1headj]=='O')
+		winner = 'D';
+		//set game winner ...
+	}	
+	if(!gameover)
+	buff[p1headi][p1headj] = 'X';
+
+
+	if(buff[p1headi][p1headj] == '-' || buff[p1headi][p1headj] == '|' || buff[p1headi][p1headj] == 'x' || buff[p1headi][p1headj] == 'X' || buff[p1headi][p1headj] =='o')
+	{
+		gameover = true;
+		winner = '2';
+		if(buff[p1headi][p1headj]=='X')
+		winner = 'D';
+		//set game winner ...
+	}	
+	if(!gameover)
+	buff[p1headi][p1headj] = 'O';
+
+	buff[fruiti][fruitj] = 'F';
+
+	for(int i=0;i<p1taili.size();i++)
+	buff[p1taili[i]][p1tailj[i]] = 'x';
+	for(int i=0;i<p2taili.size();i++)
+	buff[p2taili[i]][p2tailj[i]] = 'o';
+
+	sendto(0,buff,GAMESIZE * GAMESIZE * 2,0,cli_addr1,sizeof(cli_addr1));
+	sendto(0,buff,GAMESIZE * GAMESIZE * 2,0,cli_addr2,sizeof(cli_addr2));
 }
 
 void pinput()
@@ -134,34 +123,31 @@ void pinput()
 	timeout.tv_sec = 0;
 	timeout.tv_usec = 0;
 	int p = select(1,&readfd,NULL,NULL,&timeout);*/
-	if(_kbhit())
-	{
-		cout<<"success"<<endl;
-		pin[playno] = cin.get();
-
-		memset(buffer,'\0',1);
-		buffer[0] = pin[playno];
-		cout<<"Sending"<<endl;
-		sendto(2,buffer,1,0,(struct sockaddr *)&oppo_addr,sizeof(oppo_addr));
-	}
-
 	timeout.tv_sec = 0;
 	timeout.tv_usec = 0;
 
 	FD_ZERO(&readfd);
 
-	FD_SET(2,&readfd);
+	FD_SET(0,&readfd);
+	FD_SET(1,&readfd);
 
-	int selp = select(3,&readfd,NULL,NULL,&timeout);
+	int selp = select(2,&readfd,NULL,NULL,&timeout);
 
 	if(selp>0)
 	{
-		if(FD_ISSET(2,&readfd))
+		if(FD_ISSET(0,&readfd))
 		{
-			cout<<"Receiving"<<endl;
+			cout<<"Receiving 0"<<endl;
 			memset(buffer,'\0',1);
 			recvfrom(2,buffer,1,0,(struct sockaddr *)&cli_addr,&cli_len);
-			pin[(playno+1)%2] = buffer[0];
+			pin[0] = buffer[0];
+		}
+		if(FD_ISSET(1,&readfd))
+		{
+			cout<<"Receiving 1"<<endl;
+			memset(buffer,'\0',1);
+			recvfrom(2,buffer,1,0,(struct sockaddr *)&cli_addr,&cli_len);
+			pin[1] = buffer[0];
 		}
 	}	
 
@@ -354,13 +340,13 @@ int main(int argc,char *argv[])
 	//pthread_t in,out;
 	memset(tst,'\0',100);
 	
+	getpeername(0,(struct sockaddr *)&cli_addr1,&cli_len);
+	getpeername(1,(struct sockaddr *)&cli_addr2,&cli_len);
+
 	//sendto(2,argv[1],strlen(argv[1]),0,(struct sockaddr *)&oppo_addr,sizeof(oppo_addr));
 
 	//recvfrom(2,tst,100,0,(struct sockaddr *)&cli_addr,&cli_len);
 	//cout<<tst<<endl;
-
-	playno = atoi(argv[3]) - 1;
-	cout<<playno<<endl;
 
 	sleep(5);
 
@@ -377,3 +363,4 @@ int main(int argc,char *argv[])
 
 	return 0;
 }
+                                                                                                                                                                                                                                                                                                                                                    
